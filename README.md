@@ -1,6 +1,6 @@
 # Hotwire
 
-- A rewrite of [wire-pod](https://github.com/kercre123/wire-pod).
+- A soon-to-be rewrite of [wire-pod](https://github.com/kercre123/wire-pod).
 
 ## Things to implement
 
@@ -58,3 +58,7 @@
 - [ ] Docker (w/ storage and mDNS instructions)
 - [ ] iOS??
 - [ ] AUR
+
+## Repo owners
+
+- [kercre123/Wire](https://github.com/kercre123)
