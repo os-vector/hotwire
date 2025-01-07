@@ -1,6 +1,7 @@
 # Hotwire
 
 - A soon-to-be rewrite of [wire-pod](https://github.com/kercre123/wire-pod).
+- See the other MDs for implementation details.
 
 ## Things to implement
 
@@ -58,6 +59,11 @@
 - [ ] Docker (w/ storage and mDNS instructions)
 - [ ] iOS??
 - [ ] AUR
+
+## Progress
+
+- Copied in token, jdocs, and chipper servers from cavalier
+- Very broken. This only contains ideas and experiments
 
 ## Repo owners
 
