@@ -57,6 +57,7 @@
   - [ ] a better app which creates a foreground service
 - [ ] Debian/Ubuntu
 - [ ] Docker (w/ storage and mDNS instructions)
+- [ ] HA addon
 - [ ] iOS??
 - [ ] AUR
 
