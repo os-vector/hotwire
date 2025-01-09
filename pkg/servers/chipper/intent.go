@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"cavalier/pkg/vtt"
+	"hotwire/pkg/vtt"
 
 	pb "github.com/digital-dream-labs/api/go/chipperpb"
 )
