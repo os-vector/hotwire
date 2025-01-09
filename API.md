@@ -1,6 +1,11 @@
 # API
 
-- API definitions for Hotwire configuration, bot setup, and bot settings.
+- API definitions for Hotwire configuration, bot setup, and bot settings
+
+## Hotwire dashboard
+
+- Uptime, CPU usage, number of bots, etc
+- Bots could maybe be pinnable? Could show bot status
 
 ## Hotwire configuration
 
@@ -25,5 +30,6 @@
 - Need:
   - List of robots
     - Not just ESNs. Each robot should have it's own box in this section showing some information, like when the last command from the bot was and if the bot is active
+    - Each robot could be given a name
   - A nice-looking, searchable settings interface for each bot
   - Vector Control section
