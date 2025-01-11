@@ -2,7 +2,9 @@ package main
 
 import (
 	"fmt"
+	"hotwire/pkg/vars"
 	"image/color"
+	"net/http"
 	"strings"
 	"time"
 
@@ -11,75 +13,8 @@ import (
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
-
-type darkTheme struct{}
-
-func (d *darkTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	switch n {
-	case theme.ColorNameBackground:
-		return color.NRGBA{0x22, 0x22, 0x22, 0xFF}
-	case theme.ColorNameButton:
-		return color.NRGBA{0x33, 0x33, 0x33, 0xFF}
-	case theme.ColorNameForeground:
-		return color.White
-	}
-	return theme.DefaultTheme().Color(n, v)
-}
-func (d *darkTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
-func (d *darkTheme) Font(s fyne.TextStyle) fyne.Resource     { return theme.DefaultTheme().Font(s) }
-func (d *darkTheme) Size(n fyne.ThemeSizeName) float32 {
-	if n == theme.SizeNameInputRadius {
-		return 0
-	}
-	return theme.DefaultTheme().Size(n) * 1.3
-}
-
-type purpleTheme struct{}
-
-func (p *purpleTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	switch n {
-	case theme.ColorNameBackground:
-		return color.NRGBA{0x2E, 0x00, 0x3E, 0xFF}
-	case theme.ColorNameButton:
-		return color.NRGBA{0x4A, 0x14, 0x8C, 0xFF}
-	case theme.ColorNameForeground:
-		return color.White
-	}
-	return theme.DefaultTheme().Color(n, v)
-}
-func (p *purpleTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
-func (p *purpleTheme) Font(s fyne.TextStyle) fyne.Resource     { return theme.DefaultTheme().Font(s) }
-func (d *purpleTheme) Size(n fyne.ThemeSizeName) float32 {
-	if n == theme.SizeNameInputRadius {
-		return 0
-	}
-	return theme.DefaultTheme().Size(n) * 1.3
-}
-
-type greenTheme struct{}
-
-func (g *greenTheme) Color(n fyne.ThemeColorName, v fyne.ThemeVariant) color.Color {
-	switch n {
-	case theme.ColorNameBackground:
-		return color.NRGBA{0x00, 0x20, 0x00, 0xFF}
-	case theme.ColorNameButton:
-		return color.NRGBA{0x00, 0x55, 0x00, 0xFF}
-	case theme.ColorNameForeground:
-		return color.White
-	}
-	return theme.DefaultTheme().Color(n, v)
-}
-func (g *greenTheme) Icon(n fyne.ThemeIconName) fyne.Resource { return theme.DefaultTheme().Icon(n) }
-func (g *greenTheme) Font(s fyne.TextStyle) fyne.Resource     { return theme.DefaultTheme().Font(s) }
-func (d *greenTheme) Size(n fyne.ThemeSizeName) float32 {
-	if n == theme.SizeNameInputRadius {
-		return 0
-	}
-	return theme.DefaultTheme().Size(n) * 1.3
-}
 
 func switchSection(content *fyne.Container, newObj fyne.CanvasObject) {
 	oldObj := content.Objects[0]
@@ -133,7 +68,7 @@ var bots = []ManagementBot{
 	{"Vector", "0060059b", "Vector is inactive", 2},
 }
 
-func containerFromRobots(robots []ManagementBot) *fyne.Container {
+func containerFromRobots(content *fyne.Container, robots []ManagementBot) *fyne.Container {
 	var f int
 	mainContainer := container.NewVBox()
 	hbox := container.NewHBox()
@@ -142,7 +77,9 @@ func containerFromRobots(robots []ManagementBot) *fyne.Container {
 			container.NewVBox(
 				widget.NewRichTextWithText("ESN: "+r.ESN),
 				widget.NewRichTextWithText("Last conncheck: "+formatDuration(r.SecondsSinceLastComms)),
-				widget.NewButton("Manage", func() {}),
+				widget.NewButton("Manage", func() {
+					switchSection(content, settingsMenu(content, r.ESN))
+				}),
 			),
 		)
 		if f == 1 {
@@ -162,6 +99,7 @@ func containerFromRobots(robots []ManagementBot) *fyne.Container {
 }
 
 func main() {
+	vars.Init()
 	a := app.New()
 	a.Settings().SetTheme(&darkTheme{})
 	w := a.NewWindow("Hotwire")
@@ -192,17 +130,21 @@ func main() {
 		}),
 		widget.NewButton("Restart", func() { println("restart") }),
 	)
-	adv := container.NewVBox(
+
+	content := container.NewStack(gen)
+
+	botMan := container.NewVBox(
 		widget.NewLabelWithStyle("Bot Management", 0, fyne.TextStyle{Bold: true}),
-		containerFromRobots(bots),
+		containerFromRobots(content, bots),
 	)
+
 	net := container.NewVBox(
 		widget.NewLabelWithStyle("Configuration", 0, fyne.TextStyle{Bold: true}),
 		widget.NewEntry(),
-		widget.NewButton("Save Port", func() { println("network saved") }),
+		widget.NewButton("Save Port", func() {
+			http.Post("http://localhost:8000", "application/json", nil)
+		}),
 	)
-
-	content := container.NewStack(gen)
 
 	var dashBtn, botBtn, configBtn *widget.Button
 	var buttons []*widget.Button
@@ -223,7 +165,7 @@ func main() {
 		refreshHighlight(dashBtn)
 	})
 	botBtn = widget.NewButton("Bot Management", func() {
-		switchSection(content, adv)
+		switchSection(content, botMan)
 		refreshHighlight(botBtn)
 	})
 	configBtn = widget.NewButton("Configuration", func() {

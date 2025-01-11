@@ -81,7 +81,7 @@ func ReadJdoc(thing string, name string) (AJdoc, error) {
 	).Scan(&jdoc.DocVersion, &jdoc.FmtVersion, &jdoc.ClientMetadata, &jdoc.JsonDoc)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return AJdoc{}, ErrUserNotFound
+			return AJdoc{}, errors.New("test")
 		}
 		return AJdoc{}, errors.New("ReadJdoc: failed to read jdoc: " + err.Error())
 	}
