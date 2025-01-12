@@ -3,15 +3,22 @@ package log
 import (
 	"fmt"
 	"hotwire/pkg/vars"
+	"os"
 	"time"
 )
 
-func Init() {
+var DebugLogging bool
+
+func init() {
 	LogTrayChan = make(chan string)
+	if os.Getenv(vars.DebugLoggingEnv) == "true" {
+		fmt.Println("Debug logging is enabled")
+		DebugLogging = true
+	}
 }
 
 func Debug(a ...any) {
-	if vars.DebugLogging {
+	if DebugLogging {
 		Normal(a...)
 	}
 }

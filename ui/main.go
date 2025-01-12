@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"hotwire/pkg/vars"
 	"image/color"
 	"net/http"
 	"strings"
@@ -98,8 +97,14 @@ func containerFromRobots(content *fyne.Container, robots []ManagementBot) *fyne.
 	return mainContainer
 }
 
+func makeBotMan(content *fyne.Container) fyne.CanvasObject {
+	return container.NewVBox(
+		widget.NewLabelWithStyle("Bot Management", 0, fyne.TextStyle{Bold: true}),
+		containerFromRobots(content, bots),
+	)
+}
+
 func main() {
-	vars.Init()
 	a := app.New()
 	a.Settings().SetTheme(&darkTheme{})
 	w := a.NewWindow("Hotwire")
@@ -133,10 +138,7 @@ func main() {
 
 	content := container.NewStack(gen)
 
-	botMan := container.NewVBox(
-		widget.NewLabelWithStyle("Bot Management", 0, fyne.TextStyle{Bold: true}),
-		containerFromRobots(content, bots),
-	)
+	botMan := makeBotMan(content)
 
 	net := container.NewVBox(
 		widget.NewLabelWithStyle("Configuration", 0, fyne.TextStyle{Bold: true}),
@@ -183,6 +185,6 @@ func main() {
 	ui := container.NewVBox(topBarArea, mainArea)
 
 	w.SetContent(ui)
-	w.Resize(fyne.NewSize(800, 800))
+	w.Resize(fyne.NewSize(800, 600))
 	w.ShowAndRun()
 }
