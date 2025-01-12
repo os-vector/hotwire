@@ -3,6 +3,7 @@ package main
 import (
 	"hotwire/pkg/log"
 	"sort"
+	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
@@ -89,6 +90,15 @@ func card(title string, subtitle string, obj fyne.CanvasObject) *widget.Card {
 func settingsMenu(content *fyne.Container, esn string) fyne.CanvasObject {
 	// disconnect button
 
+	loadingBar := widget.NewProgressBar()
+	loadBarCard := widget.NewCard("Loading...", "", loadingBar)
+	switchSection(content, loadBarCard)
+
+	for i := 0; i <= 100; i++ {
+		loadingBar.SetValue(float64(i) / 100)
+		time.Sleep(time.Millisecond * 20)
+	}
+
 	go func() {
 		// watchdog, ensure we have connection to bot. maybe this could be event stream?
 	}()
@@ -118,9 +128,19 @@ func settingsMenu(content *fyne.Container, esn string) fyne.CanvasObject {
 		//TODO
 	})
 
+	go func() {
+		for {
+			volumeSelect.SetSelected("High")
+			time.Sleep(time.Second)
+			volumeSelect.SetSelected("Low")
+			time.Sleep(time.Second)
+		}
+	}()
+
 	tempSelect := widget.NewSelect(stringsFromMapStringInt(tempOptions), func(temp string) {})
 
-	return container.NewVBox(disconnectButton,
+	return container.NewVBox(
+		disconnectButton,
 		container.NewHBox(
 			card("Volume", "", volumeSelect),
 			card("Button Action", "", buttonSelect),
