@@ -5,7 +5,6 @@ import (
 	"image/color"
 	"net/http"
 	"strings"
-	"time"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -16,25 +15,12 @@ import (
 )
 
 func switchSection(content *fyne.Container, newObj fyne.CanvasObject) {
-	oldObj := content.Objects[0]
-	w := content.Size().Width
+	// Clear out any existing children.
+	content.Objects = nil
+
+	// Add the new child, so that Fyne can lay it out.
 	content.Add(newObj)
-	newObj.Move(fyne.NewPos(w, 0))
-
-	canvas.NewPositionAnimation(oldObj.Position(), fyne.NewPos(w, 0), time.Millisecond*200, func(pos fyne.Position) {
-		oldObj.Move(pos)
-		oldObj.Refresh()
-	}).Start()
-
-	canvas.NewPositionAnimation(newObj.Position(), fyne.NewPos(0, 0), time.Millisecond*200, func(pos fyne.Position) {
-		newObj.Move(pos)
-		newObj.Refresh()
-	}).Start()
-
-	go func() {
-		time.Sleep(time.Millisecond * 200)
-		content.Remove(oldObj)
-	}()
+	content.Refresh()
 }
 
 func formatDuration(sec int) string {
@@ -180,9 +166,17 @@ func main() {
 
 	leftSep := canvas.NewRectangle(color.NRGBA{0xAA, 0xAA, 0xAA, 0xFF})
 	leftSep.SetMinSize(fyne.NewSize(3, 0))
-	menu := container.NewVBox(dashBtn, botBtn, configBtn)
-	mainArea := container.NewHBox(menu, leftSep, content)
-	ui := container.NewVBox(topBarArea, mainArea)
+	//menu := container.NewVBox(dashBtn, botBtn, configBtn)
+	//mainArea := container.NewHBox(menu, leftSep, content)
+	ui := container.NewBorder(
+		topBarArea, // top
+		nil,        // bottom
+		container.NewVBox(dashBtn, botBtn, configBtn), // left
+		nil,     // right
+		content, // center
+	)
+
+	//ui := container.NewVBox(topBarArea, mainArea)
 
 	w.SetContent(ui)
 	w.Resize(fyne.NewSize(800, 600))

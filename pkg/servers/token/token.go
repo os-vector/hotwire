@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -14,11 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"hotwire/pkg/sessions"
-	"hotwire/pkg/users"
+	"hotwire/pkg/log"
 	"hotwire/pkg/vars"
 
-	ijwt "github.com/dgrijalva/jwt-go"
 	"github.com/digital-dream-labs/api/go/tokenpb"
 	"github.com/golang-jwt/jwt"
 	"github.com/google/uuid"
@@ -120,64 +119,81 @@ func GenJWT(userID, esnThing string) *tokenpb.TokenBundle {
 	return bundle
 }
 
+// this is something no one should ever do
 func decodeJWT(tokenString string) (string, string, error) {
-	token, _, err := new(ijwt.Parser).ParseUnverified(tokenString, jwt.MapClaims{})
-	if err != nil {
-		return "", "", fmt.Errorf("error parsing token: %w", err)
-	}
-	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		esnThing := claims["requestor_id"]
-		userID := claims["user_id"]
-		esnThingStr, ok := esnThing.(string)
-		if !ok {
-			return "", "", errors.New("token does not have an esn")
-		}
-		userIDStr, ok := userID.(string)
-		if !ok {
-			return "", "", errors.New("token does not have a user id")
-		}
-		return esnThingStr, userIDStr, nil
+	parts := strings.Split(tokenString, ".")
+	if len(parts) < 2 {
+		return "", "", fmt.Errorf("invalid token structure")
 	}
 
-	return "", "", errors.New("invalid token or claims")
+	headerPart := parts[0]
+	payloadPart := parts[1]
+
+	headerBytes, err := base64.RawURLEncoding.DecodeString(headerPart)
+	if err != nil {
+		return "", "", fmt.Errorf("error decoding header: %w", err)
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(payloadPart)
+	if err != nil {
+		return "", "", fmt.Errorf("error decoding payload: %w", err)
+	}
+	var header map[string]interface{}
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return "", "", fmt.Errorf("error unmarshaling header JSON: %w", err)
+	}
+	fmt.Printf("Decoded header: %+v\n", header)
+
+	var payload map[string]interface{}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return "", "", fmt.Errorf("error unmarshaling payload JSON: %w", err)
+	}
+	fmt.Printf("Decoded payload: %+v\n", payload)
+
+	requestorID, ok := payload["requestor_id"].(string)
+	if !ok {
+		return "", "", errors.New("payload missing 'requestor_id'")
+	}
+
+	userID, ok := payload["user_id"].(string)
+	if !ok {
+		return "", "", errors.New("payload missing 'user_id'")
+	}
+
+	return requestorID, userID, nil
 }
 
 func (s *TokenServer) AssociatePrimaryUser(ctx context.Context, req *tokenpb.AssociatePrimaryUserRequest) (*tokenpb.AssociatePrimaryUserResponse, error) {
-	token, cert, name, esn, err := getBotDetailsFromTokReq(ctx, req)
+	_, cert, name, esn, err := getBotDetailsFromTokReq(ctx, req)
+	log.Debug("incoming primary user")
+	log.Debug(cert, name, esn, err)
 	thing := esn
 	esn = strings.TrimPrefix(esn, "vic:")
 	if err != nil {
 		return nil, err
 	}
-	if !sessions.IsSessionGood(token) {
-		return nil, errors.New("session_expired")
-	}
 	os.WriteFile(filepath.Join(vars.SessionCertsStorage, name+"_"+esn), cert, 0777)
-	bundle := GenJWT(sessions.GetUserIDFromSession(token), thing)
-	users.AssociateRobotWithAccount(thing, sessions.GetUserIDFromSession(token))
+	bundle := GenJWT("hotwire", thing)
 	return &tokenpb.AssociatePrimaryUserResponse{
 		Data: bundle,
 	}, nil
 }
 
 func (s *TokenServer) AssociateSecondaryClient(ctx context.Context, req *tokenpb.AssociateSecondaryClientRequest) (*tokenpb.AssociateSecondaryClientResponse, error) {
-	token := req.UserSession
 	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		return nil, errors.New("no request metadata")
 	}
 	jwtToken := md["anki-access-token"]
 	thing, userId, err := decodeJWT(jwtToken[0])
+	log.Debug("Incoming secondary client")
+	log.Debug(jwtToken[0])
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
-	if !users.IsRobotAssociatedWithAccount(thing, userId) {
-		return nil, errors.New("bot not associated with account")
-	}
-	if !sessions.IsSessionGood(token) {
-		return nil, errors.New("session_expired")
-	}
 	bundle := GenJWT(userId, thing)
+	log.Debug(bundle)
 	return &tokenpb.AssociateSecondaryClientResponse{
 		Data: bundle,
 	}, nil
@@ -190,13 +206,12 @@ func (s *TokenServer) RefreshToken(ctx context.Context, req *tokenpb.RefreshToke
 	if !ok {
 		return nil, errors.New("no request metadata")
 	}
+	log.Debug("Incoming refresh token")
 	jwtToken := md["anki-access-token"]
 	thing, userId, err := decodeJWT(jwtToken[0])
+	log.Debug(jwtToken, thing, userId)
 	if err != nil {
 		return nil, err
-	}
-	if !users.IsRobotAssociatedWithAccount(thing, userId) {
-		return nil, errors.New("bot not associated with account")
 	}
 	bundle := GenJWT(userId, thing)
 	return &tokenpb.RefreshTokenResponse{

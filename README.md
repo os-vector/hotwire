@@ -5,8 +5,8 @@
 
 ## Things to implement
 
-- [ ] Token server
-- [ ] Jdocs server
+- [x] Token server
+- [x] Jdocs server
 - [ ] Chipper server
 - [ ] STT interface
   - Should implement:

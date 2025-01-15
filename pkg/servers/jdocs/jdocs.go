@@ -1,10 +1,8 @@
 package jdocs
 
 import (
-	"cavalier/pkg/users"
-	"cavalier/pkg/vars"
 	"context"
-	"errors"
+	"hotwire/pkg/vars"
 
 	"github.com/digital-dream-labs/api/go/jdocspb"
 )
@@ -14,9 +12,6 @@ type JdocServer struct {
 }
 
 func (s *JdocServer) WriteDoc(ctx context.Context, req *jdocspb.WriteDocReq) (*jdocspb.WriteDocResp, error) {
-	if !users.IsRobotAssociatedWithAccount(req.Thing, req.UserId) {
-		return nil, errors.New("not authorized")
-	}
 	vars.WriteJdoc(req.Thing, req.DocName, vars.AJdoc{
 		DocVersion:     req.Doc.DocVersion,
 		FmtVersion:     req.Doc.FmtVersion,
@@ -30,9 +25,6 @@ func (s *JdocServer) WriteDoc(ctx context.Context, req *jdocspb.WriteDocReq) (*j
 }
 
 func (s *JdocServer) ReadDocs(ctx context.Context, req *jdocspb.ReadDocsReq) (*jdocspb.ReadDocsResp, error) {
-	if !users.IsRobotAssociatedWithAccount(req.Thing, req.UserId) {
-		return nil, errors.New("not authorized")
-	}
 	var resp jdocspb.ReadDocsResp
 	for _, item := range req.Items {
 		ajdoc, err := vars.ReadJdoc(req.Thing, item.DocName)

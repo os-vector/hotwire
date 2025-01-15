@@ -1,89 +1,89 @@
 package vars
 
 import (
-	"database/sql"
+	"encoding/json"
 	"errors"
+	"os"
 	"strings"
-
-	"github.com/digital-dream-labs/api/go/jdocspb"
+	"sync"
 )
 
-var JDOCSDB *sql.DB
-
-// JDOCS need to be accessible by both token and jdocs servers. Token writes a vic.AppTokens jdoc.
-func InitJdocsDB(jdocsDB *sql.DB) {
-	_, err := jdocsDB.Exec(`
-		CREATE TABLE IF NOT EXISTS bot_jdocs (
-			thing TEXT NOT NULL,
-			name TEXT NOT NULL,
-			doc_version INTEGER NOT NULL,
-			fmt_version INTEGER NOT NULL,
-			client_metadata TEXT NOT NULL,
-			json_doc TEXT NOT NULL,
-			PRIMARY KEY (thing, name)
-		);
-	`)
-	if err != nil {
-		panic("failed to initialize bot_jdocs table: " + err.Error())
-	}
-	JDOCSDB = jdocsDB
-}
-
-func AJdocToJdoc(in AJdoc) jdocspb.Jdoc {
-	return jdocspb.Jdoc{
-		DocVersion:     in.DocVersion,
-		FmtVersion:     in.FmtVersion,
-		ClientMetadata: in.ClientMetadata,
-		JsonDoc:        in.JsonDoc,
-	}
-}
+var (
+	BotJdocs   []botJdoc
+	jdocsMutex sync.Mutex
+)
 
 type AJdoc struct {
-	DocVersion     uint64 `protobuf:"varint,1,opt,name=doc_version,json=docVersion,proto3" json:"doc_version,omitempty"`            // first version = 1; 0 => invalid or doesn't exist
-	FmtVersion     uint64 `protobuf:"varint,2,opt,name=fmt_version,json=fmtVersion,proto3" json:"fmt_version,omitempty"`            // first version = 1; 0 => invalid
-	ClientMetadata string `protobuf:"bytes,3,opt,name=client_metadata,json=clientMetadata,proto3" json:"client_metadata,omitempty"` // arbitrary client-defined string, eg a data fingerprint (typ "", 32 chars max)
-	JsonDoc        string `protobuf:"bytes,4,opt,name=json_doc,json=jsonDoc,proto3" json:"json_doc,omitempty"`
+	DocVersion     uint64 `json:"doc_version,omitempty"`
+	FmtVersion     uint64 `json:"fmt_version,omitempty"`
+	ClientMetadata string `json:"client_metadata,omitempty"`
+	JsonDoc        string `json:"json_doc,omitempty"`
 }
 
-type botjdoc struct {
-	// vic:00000000
+type botJdoc struct {
 	Thing string `json:"thing"`
-	// vic.RobotSettings, etc
-	Name string `json:"name"`
-	// actual jdoc
-	Jdoc AJdoc `json:"jdoc"`
+	Name  string `json:"name"`
+	Jdoc  AJdoc  `json:"jdoc"`
+}
+
+func loadJdocsFile() error {
+	if _, err := os.Stat(JdocsFilePath); os.IsNotExist(err) {
+		return nil
+	}
+	f, err := os.Open(JdocsFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	var data []botJdoc
+	if err := json.NewDecoder(f).Decode(&data); err != nil {
+		return err
+	}
+	BotJdocs = data
+	return nil
+}
+
+func saveJdocsFile() error {
+	f, err := os.Create(JdocsFilePath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return json.NewEncoder(f).Encode(BotJdocs)
 }
 
 func Thingifier(esn string) string {
 	esn = strings.ToLower(strings.TrimSpace(esn))
-	if strings.HasPrefix(esn, "vic:") {
-		return esn
+	if !strings.HasPrefix(esn, "vic:") {
+		esn = "vic:" + esn
 	}
-	return "vic:" + esn
+	return esn
 }
 
-func WriteJdoc(thing string, name string, jdoc AJdoc) error {
-	_, err := JDOCSDB.Exec(
-		"INSERT OR REPLACE INTO bot_jdocs (thing, name, doc_version, fmt_version, client_metadata, json_doc) VALUES (?, ?, ?, ?, ?, ?)",
-		thing, name, jdoc.DocVersion, jdoc.FmtVersion, jdoc.ClientMetadata, jdoc.JsonDoc,
-	)
-	if err != nil {
-		return errors.New("WriteJdoc: failed to write jdoc: " + err.Error())
-	}
-	return nil
-}
-
-func ReadJdoc(thing string, name string) (AJdoc, error) {
-	var jdoc AJdoc
-	err := JDOCSDB.QueryRow(
-		"SELECT doc_version, fmt_version, client_metadata, json_doc FROM bot_jdocs WHERE thing = ? AND name = ?",
-		thing, name,
-	).Scan(&jdoc.DocVersion, &jdoc.FmtVersion, &jdoc.ClientMetadata, &jdoc.JsonDoc)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return AJdoc{}, errors.New("test")
+func WriteJdoc(thing, name string, j AJdoc) error {
+	jdocsMutex.Lock()
+	defer jdocsMutex.Unlock()
+	found := false
+	for i := range BotJdocs {
+		if BotJdocs[i].Thing == thing && BotJdocs[i].Name == name {
+			BotJdocs[i].Jdoc = j
+			found = true
+			break
 		}
-		return AJdoc{}, errors.New("ReadJdoc: failed to read jdoc: " + err.Error())
 	}
-	return jdoc, nil
+	if !found {
+		BotJdocs = append(BotJdocs, botJdoc{Thing: thing, Name: name, Jdoc: j})
+	}
+	return saveJdocsFile()
+}
+
+func ReadJdoc(thing, name string) (AJdoc, error) {
+	jdocsMutex.Lock()
+	defer jdocsMutex.Unlock()
+	for _, v := range BotJdocs {
+		if v.Thing == thing && v.Name == name {
+			return v.Jdoc, nil
+		}
+	}
+	return AJdoc{}, errors.New("not found")
 }

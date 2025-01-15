@@ -128,29 +128,86 @@ func settingsMenu(content *fyne.Container, esn string) fyne.CanvasObject {
 		//TODO
 	})
 
-	go func() {
-		for {
-			volumeSelect.SetSelected("High")
-			time.Sleep(time.Second)
-			volumeSelect.SetSelected("Low")
-			time.Sleep(time.Second)
-		}
-	}()
+	// go func() {
+	// 	for {
+	// 		volumeSelect.SetSelected("High")
+	// 		time.Sleep(time.Second)
+	// 		volumeSelect.SetSelected("Low")
+	// 		time.Sleep(time.Second)
+	// 	}
+	// }()
 
 	tempSelect := widget.NewSelect(stringsFromMapStringInt(tempOptions), func(temp string) {})
 
-	return container.NewVBox(
+	return container.New(
+		NewFlowLayout(
+			5,
+		),
 		disconnectButton,
-		container.NewHBox(
-			card("Volume", "", volumeSelect),
-			card("Button Action", "", buttonSelect),
-		),
-		container.NewHBox(
-			card("Location", "ex. 'Brooklyn, New York, United States", locationFinal),
-		),
-		container.NewHBox(
-			card("Time Zone", "", timeZoneSelect),
-			card("Temp Units", "", tempSelect),
-		),
+		card("Volume", "", volumeSelect),
+		card("Button Action", "", buttonSelect),
+		card("Location", "ex. 'Brooklyn, New York, United States", locationFinal),
+		card("Time Zone", "", timeZoneSelect),
+		card("Temp Units", "", tempSelect),
 	)
+}
+
+type FlowLayout struct {
+	Spacing float32
+}
+
+func NewFlowLayout(spacing float32) *FlowLayout {
+	return &FlowLayout{Spacing: spacing}
+}
+
+func (f *FlowLayout) Layout(objects []fyne.CanvasObject, size fyne.Size) {
+	x := float32(0)
+	y := float32(0)
+	rowHeight := float32(0)
+
+	for _, o := range objects {
+		if !o.Visible() {
+			continue
+		}
+
+		min := o.MinSize()
+		// If adding this object exceeds the container width, wrap to next line
+		if x+min.Width > size.Width {
+			x = 0
+			y += rowHeight + f.Spacing
+			rowHeight = 0
+		}
+
+		o.Move(fyne.NewPos(x, y))
+		o.Resize(min)
+
+		x += min.Width + f.Spacing
+
+		if min.Height > rowHeight {
+			rowHeight = min.Height
+		}
+	}
+}
+
+func (f *FlowLayout) MinSize(objects []fyne.CanvasObject) fyne.Size {
+	var maxWidth float32
+	var totalHeight float32
+
+	visibleCount := 0
+	for _, o := range objects {
+		if !o.Visible() {
+			continue
+		}
+		visibleCount++
+		min := o.MinSize()
+		if min.Width > maxWidth {
+			maxWidth = min.Width
+		}
+		totalHeight += min.Height
+	}
+	if visibleCount > 1 {
+		totalHeight += f.Spacing * float32(visibleCount-1)
+	}
+
+	return fyne.NewSize(maxWidth, totalHeight)
 }

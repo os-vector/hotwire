@@ -4,10 +4,8 @@ go 1.23.4
 
 require (
 	fyne.io/fyne/v2 v2.5.3
-	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/digital-dream-labs/api v0.0.0-20210824232136-8cc90c1bb12c
 	github.com/digital-dream-labs/hugh v0.0.0-20210210154335-f4159b9fcd5f
-	github.com/fforchino/vector-go-sdk v0.0.0-20231108155304-62168f3595d6
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/google/uuid v1.6.0
 	google.golang.org/grpc v1.69.2
@@ -31,6 +29,7 @@ require (
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/gopherjs/gopherjs v1.17.2 // indirect
+	github.com/grpc-ecosystem/go-grpc-middleware v1.2.2 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.3.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/jeandeaual/go-locale v0.0.0-20240223122105-ce5225dcaa49 // indirect
@@ -39,7 +38,6 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.4.0 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rymdport/portal v0.3.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
