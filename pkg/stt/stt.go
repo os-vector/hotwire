@@ -16,7 +16,7 @@ type STTProcessor interface {
 	Load(path string) error
 	Unload() error
 
-	Process(stream SpeechStream)
+	Process(stream SpeechStream) (string, error)
 
 	MultiLanguage() bool
 	SupportedLanguages() []string
@@ -34,25 +34,32 @@ type SpeechStream struct {
 	activeFrames   int
 	vadInst        *webrtcvad.VAD
 
+	firstChunk []byte
+
+	isPastFirstChunk bool
+
 	audioProc *audioproc.AudioProcessor
 }
 
-func Init(req interface{}) *SpeechStream {
+func NewSpeechStream(req interface{}) SpeechStream {
 	var s SpeechStream
 	if str, ok := req.(*vtt.IntentRequest); ok {
 		s = SpeechStream{
-			Device: str.Device,
-			stream: str.Stream,
+			Device:     str.Device,
+			stream:     str.Stream,
+			firstChunk: str.FirstReq.InputAudio,
 		}
 	} else if str, ok := req.(*vtt.KnowledgeGraphRequest); ok {
 		s = SpeechStream{
-			Device: str.Device,
-			stream: str.Stream,
+			Device:     str.Device,
+			stream:     str.Stream,
+			firstChunk: str.FirstReq.InputAudio,
 		}
 	} else if str, ok := req.(*vtt.IntentGraphRequest); ok {
 		s = SpeechStream{
-			Device: str.Device,
-			stream: str.Stream,
+			Device:     str.Device,
+			stream:     str.Stream,
+			firstChunk: str.FirstReq.InputAudio,
 		}
 	} else if _, ok := req.(string); ok {
 		s = SpeechStream{
@@ -71,38 +78,54 @@ func Init(req interface{}) *SpeechStream {
 	if err != nil {
 		log.Error("failed to create new audio processor (Init): ", err)
 	}
-	return &s
+	return s
 }
 
 func (s *SpeechStream) Read() ([]byte, error) {
 	// returns next chunk in voice stream as pcm
+	var chunkData []byte
 	if str, ok := s.stream.(pb.ChipperGrpc_StreamingIntentServer); ok {
-		chunk, err := str.Recv()
-		if err != nil {
-			log.Error(err)
-			return nil, err
+		if !s.isPastFirstChunk {
+			chunkData = s.firstChunk
+			s.isPastFirstChunk = true
+		} else {
+			chunk, err := str.Recv()
+			if err != nil {
+				log.Error(err)
+				return nil, err
+			}
+			chunkData = chunk.InputAudio
 		}
-		decoded := s.audioProc.ProcessAudio(chunk.InputAudio)
-		return decoded, nil
 	} else if str, ok := s.stream.(pb.ChipperGrpc_StreamingIntentGraphServer); ok {
-		chunk, err := str.Recv()
-		if err != nil {
-			log.Error(err)
-			return nil, err
+		if !s.isPastFirstChunk {
+			chunkData = s.firstChunk
+			s.isPastFirstChunk = true
+		} else {
+			chunk, err := str.Recv()
+			if err != nil {
+				log.Error(err)
+				return nil, err
+			}
+			chunkData = chunk.InputAudio
 		}
-		decoded := s.audioProc.ProcessAudio(chunk.InputAudio)
-		return decoded, nil
 	} else if str, ok := s.stream.(pb.ChipperGrpc_StreamingKnowledgeGraphServer); ok {
-		chunk, err := str.Recv()
-		if err != nil {
-			log.Error(err)
-			return nil, err
+		if !s.isPastFirstChunk {
+			chunkData = s.firstChunk
+			s.isPastFirstChunk = true
+		} else {
+			chunk, err := str.Recv()
+			if err != nil {
+				log.Error(err)
+				return nil, err
+			}
+			chunkData = chunk.InputAudio
 		}
-		decoded := s.audioProc.ProcessAudio(chunk.InputAudio)
-		return decoded, nil
+	} else {
+		log.Error("invalid type")
+		return nil, errors.New("invalid type")
 	}
-	log.Error("invalid type")
-	return nil, errors.New("invalid type")
+	decoded := s.audioProc.ProcessAudio(chunkData)
+	return decoded, nil
 }
 
 func (s *SpeechStream) DetectEndOfSpeech(chunk []byte) bool {

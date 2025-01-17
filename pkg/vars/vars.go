@@ -13,6 +13,7 @@ var (
 	HotwireConfigFilePath = "hotwireConfig.json"
 	PerBotFilePath        = "perBotConfig.json"
 	SessionCertsStorage   = "session-certs"
+	STTStorage            = "stt"
 
 	CertPath = "cert.pem"
 	KeyPath  = "cert.key"
@@ -27,6 +28,7 @@ func init() {
 	HotwireConfigFilePath = filepath.Join(RootPath, HotwireConfigFilePath)
 	PerBotFilePath = filepath.Join(RootPath, PerBotFilePath)
 	SessionCertsStorage = filepath.Join(RootPath, SessionCertsStorage)
+	STTStorage = filepath.Join(RootPath, STTStorage)
 
 	CertPath = filepath.Join(RootPath, CertPath)
 	KeyPath = filepath.Join(RootPath, KeyPath)

@@ -68,7 +68,7 @@ func main() {
 		log.Fatal(err)
 	}
 	fmt.Println("listening for mic data at 16khz, 320 bytes per chunk...")
-	spStr := stt.Init("test")
+	spStr := stt.NewSpeechStream("test")
 	aProc, _ := audioproc.NewAudioProcessor(16000, 200.0, 3)
 
 	for chunk := range ch {

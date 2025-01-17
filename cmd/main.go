@@ -2,20 +2,24 @@ package main
 
 import (
 	"crypto/tls"
+	"hotwire/pkg/hotwire"
 	"hotwire/pkg/log"
 	"hotwire/pkg/servers/jdocs"
 	"hotwire/pkg/servers/token"
+	"hotwire/pkg/stts/vosk"
 	"hotwire/pkg/vars"
 	"net"
 	"os"
 
+	chipperserver "hotwire/pkg/servers/chipper"
+
+	chipperpb "github.com/digital-dream-labs/api/go/chipperpb"
 	"github.com/digital-dream-labs/api/go/jdocspb"
 	"github.com/digital-dream-labs/api/go/tokenpb"
 	grpcserver "github.com/digital-dream-labs/hugh/grpc/server"
 )
 
 func main() {
-
 	certPub, err := os.ReadFile(vars.CertPath)
 	if err != nil {
 		panic(err)
@@ -39,21 +43,21 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	//p, err := processreqs.New(stt.Init, stt.STT, stt.Name)
-	// if err != nil {
-	// 	panic(err)
-	// }
-	// s, _ := chipperserver.New(
-	// 	chipperserver.WithIntentProcessor(p),
-	// 	chipperserver.WithKnowledgeGraphProcessor(p),
-	// 	chipperserver.WithIntentGraphProcessor(p),
-	// )
+	p, err := hotwire.New(vosk.NewVoskSTT())
+	if err != nil {
+		panic(err)
+	}
+	s, _ := chipperserver.New(
+		chipperserver.WithIntentProcessor(p),
+		chipperserver.WithKnowledgeGraphProcessor(p),
+		chipperserver.WithIntentGraphProcessor(p),
+	)
 
 	tokenServer := token.NewTokenServer()
 	jdocsServer := jdocs.NewJdocsServer()
 	//jdocsserver.IniToJson()
 
-	//	chipperpb.RegisterChipperGrpcServer(srv.Transport(), s)
+	chipperpb.RegisterChipperGrpcServer(srv.Transport(), s)
 	jdocspb.RegisterJdocsServer(srv.Transport(), jdocsServer)
 	tokenpb.RegisterTokenServer(srv.Transport(), tokenServer)
 
