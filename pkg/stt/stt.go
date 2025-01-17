@@ -23,11 +23,12 @@ type STTProcessor interface {
 }
 
 type STTModel struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	ID          string `json:"id"`
-	URL         string `json:"url"`
-	Downloaded  bool   `json:"downloaded"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	ID          string   `json:"id"`
+	Languages   []string `json:"languages"`
+	URL         string   `json:"url"`
+	Downloaded  bool     `json:"downloaded"`
 }
 
 type SpeechStream struct {
@@ -79,7 +80,7 @@ func NewSpeechStream(req interface{}) SpeechStream {
 		log.Error("failed to create new VAD instance (Init): ", err)
 	}
 	s.vadInst.SetMode(3)
-	s.audioProc, err = audioproc.NewAudioProcessor(16000, 200, 1)
+	s.audioProc, err = audioproc.NewAudioProcessor(16000, 550, 3)
 	if err != nil {
 		log.Error("failed to create new audio processor (Init): ", err)
 	}
@@ -134,7 +135,7 @@ func (s *SpeechStream) Read() ([]byte, error) {
 }
 
 func (s *SpeechStream) DetectEndOfSpeech(chunk []byte) bool {
-	inactiveNumMax := 23
+	inactiveNumMax := 28
 	for _, chunk := range audioproc.SplitIntoFrames(chunk, 320) {
 		active, err := s.vadInst.Process(16000, chunk)
 		if err != nil {
@@ -148,7 +149,7 @@ func (s *SpeechStream) DetectEndOfSpeech(chunk []byte) bool {
 		} else {
 			s.inactiveFrames = s.inactiveFrames + 1
 		}
-		if s.inactiveFrames >= inactiveNumMax && s.activeFrames > 18 {
+		if s.inactiveFrames >= inactiveNumMax && s.activeFrames > 30 {
 			log.Important("(Bot " + s.Device + ") End of speech detected.")
 			return true
 		}

@@ -19,6 +19,7 @@ type AudioProcessor struct {
 	runningRMS         float64
 	targetRMS          float64
 	highPassFilter     *biquadFilter
+	preHighPassFilter  *biquadFilter
 	smoothingAlpha     float64
 	maxGainChange      float64
 	noiseGateThreshold float64
@@ -53,6 +54,7 @@ func NewAudioProcessor(sampleRate int, cutoffHz float64, vadMode int) (*AudioPro
 		hpAlpha:            alpha,
 		currentGain:        1.0, // start at 1
 		highPassFilter:     newBiquadHighPass(float64(sampleRate), cutoffHz),
+		preHighPassFilter:  newBiquadHighPass(float64(sampleRate), cutoffHz),
 	}, nil
 }
 
@@ -85,6 +87,7 @@ func (rawr *AudioProcessor) ProcessAudio(buf []byte) []byte {
 // do HP filter, RMS-based normalization, noise gate...
 func (cat *AudioProcessor) processInt16Chunk(samples []int16, active bool) []int16 {
 	out := make([]int16, len(samples))
+	samples = cat.highPassFilter.process(samples)
 	rms := computeRMS(samples)
 
 	if active {
