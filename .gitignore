@@ -1,5 +1,7 @@
 /ui/wasm
 /ui/main
+/ui-fyne/main
+/ui-fyne/wasm
 /storage
 .pcm
 /ui-flutter
