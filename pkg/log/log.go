@@ -5,6 +5,8 @@ import (
 	"hotwire/pkg/vars"
 	"os"
 	"time"
+
+	"github.com/fatih/color"
 )
 
 var DebugLogging bool
@@ -21,6 +23,14 @@ func Debug(a ...any) {
 	if DebugLogging {
 		Normal(a...)
 	}
+}
+
+func Important(a ...any) {
+	color.Green(fmt.Sprint(a...))
+}
+
+func Error(a ...any) {
+	color.Red(fmt.Sprint(a...))
 }
 
 var debugLogging bool = true
