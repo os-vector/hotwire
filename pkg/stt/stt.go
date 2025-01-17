@@ -18,11 +18,16 @@ type STTProcessor interface {
 
 	Process(stream SpeechStream) (string, error)
 
-	MultiLanguage() bool
-	SupportedLanguages() []string
-
 	DownloadableModels() bool
-	ModelURLs() map[string]string
+	Models() []STTModel
+}
+
+type STTModel struct {
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	ID          string `json:"id"`
+	URL         string `json:"url"`
+	Downloaded  bool   `json:"downloaded"`
 }
 
 type SpeechStream struct {

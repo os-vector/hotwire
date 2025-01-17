@@ -55,18 +55,3 @@ func (v VoskSTT) Process(stream stt.SpeechStream) (string, error) {
 	rec.Reset()
 	return "", nil
 }
-
-func (v VoskSTT) MultiLanguage() bool {
-	return false
-}
-
-func (v VoskSTT) SupportedLanguages() []string {
-	return []string{}
-}
-
-func (v VoskSTT) DownloadableModels() bool {
-	return false
-}
-func (v VoskSTT) ModelURLs() map[string]string {
-	return map[string]string{}
-}
