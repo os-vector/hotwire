@@ -66,56 +66,69 @@ func getBotDetailsFromTokReq(ctx context.Context, req *tokenpb.AssociatePrimaryU
 	return token, cert, name, esn, nil
 }
 
-func GenJWT(userID, esnThing string) *tokenpb.TokenBundle {
+func GenJWT(genSTS bool, genJWT bool, userID, esnThing string) *tokenpb.TokenBundle {
 	bundle := &tokenpb.TokenBundle{}
 
-	var tokenJson ClientTokenManager
-	guid, tokenHash, _ := CreateTokenAndHashedToken()
-	ajdoc, err := vars.ReadJdoc(vars.Thingifier(esnThing), "vic.AppTokens")
-	if err != nil {
-		ajdoc.DocVersion = 1
-		ajdoc.FmtVersion = 1
-		ajdoc.ClientMetadata = "wirepod-new-token"
-	}
-	json.Unmarshal([]byte(ajdoc.JsonDoc), &tokenJson)
-	var clientToken ClientToken
-	clientToken.IssuedAt = time.Now().Format(TimeFormat)
-	clientToken.ClientName = "idontcare"
-	clientToken.Hash = tokenHash
-	clientToken.AppId = "SDK"
-	tokenJson.ClientTokens = append(tokenJson.ClientTokens, clientToken)
-	var finalTokens []ClientToken
-	// limit tokens to 6, don't fill the db
-	if len(tokenJson.ClientTokens) == 6 {
-		for i, tok := range tokenJson.ClientTokens {
-			if i != 0 {
-				finalTokens = append(finalTokens, tok)
-			}
-		}
-		tokenJson.ClientTokens = finalTokens
-	}
-	jdocJsoc, err := json.Marshal(tokenJson)
-	ajdoc.JsonDoc = string(jdocJsoc)
-	ajdoc.DocVersion++
-	vars.WriteJdoc(vars.Thingifier(esnThing), "vic.AppTokens", ajdoc)
-
-	bundle.ClientToken = guid
-
 	currentTime := time.Now().Format(TimeFormat)
-	expiresAt := time.Now().AddDate(0, 1, 0).Format(TimeFormat)
-	requestUUID := uuid.New().String()
-	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
-		"expires":      expiresAt,
-		"iat":          currentTime,
-		"permissions":  nil,
-		"requestor_id": esnThing,
-		"token_id":     requestUUID,
-		"token_type":   "user+robot",
-		"user_id":      userID,
-	})
-	rsaKey, _ := rsa.GenerateKey(rand.Reader, 1024)
-	tokenString, _ := token.SignedString(rsaKey)
-	bundle.Token = tokenString
+	expiresAt := time.Now().AddDate(0, 6, 0).Format(TimeFormat)
+
+	if genJWT {
+		var tokenJson ClientTokenManager
+		guid, tokenHash, _ := CreateTokenAndHashedToken()
+		ajdoc, err := vars.ReadJdoc(vars.Thingifier(esnThing), "vic.AppTokens")
+		if err != nil {
+			log.Debug("new vic.AppTokens jdoc:", err)
+			ajdoc.DocVersion = 1
+			ajdoc.FmtVersion = 1
+			ajdoc.ClientMetadata = "wirepod-new-token"
+		}
+		json.Unmarshal([]byte(ajdoc.JsonDoc), &tokenJson)
+		var clientToken ClientToken
+		clientToken.IssuedAt = time.Now().Format(TimeFormat)
+		clientToken.ClientName = "hotwire"
+		clientToken.Hash = tokenHash
+		clientToken.AppId = "SDK"
+		tokenJson.ClientTokens = append(tokenJson.ClientTokens, clientToken)
+		var finalTokens []ClientToken
+		// limit tokens to 6, don't fill the db
+		if len(tokenJson.ClientTokens) == 6 {
+			log.Debug("shaving a token off the top (", esnThing, ")")
+			for i, tok := range tokenJson.ClientTokens {
+				if i != 0 {
+					finalTokens = append(finalTokens, tok)
+				}
+			}
+			tokenJson.ClientTokens = finalTokens
+		}
+		jdocJsoc, err := json.Marshal(tokenJson)
+		ajdoc.JsonDoc = string(jdocJsoc)
+		ajdoc.DocVersion++
+		vars.WriteJdoc(vars.Thingifier(esnThing), "vic.AppTokens", ajdoc)
+
+		bundle.ClientToken = guid
+
+		requestUUID := uuid.New().String()
+		jwtToken := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+			"expires":      expiresAt,
+			"iat":          currentTime,
+			"permissions":  nil,
+			"requestor_id": esnThing,
+			"token_id":     requestUUID,
+			"token_type":   "user+robot",
+			"user_id":      userID,
+		})
+		rsaKey, _ := rsa.GenerateKey(rand.Reader, 1024)
+		tokenString, _ := jwtToken.SignedString(rsaKey)
+		bundle.Token = tokenString
+	}
+	if genSTS {
+		bundle.StsToken = &tokenpb.StsToken{
+			AccessKeyId:     "placeholder",
+			SecretAccessKey: "placeholder",
+			SessionToken:    "placeholder",
+			Expiration:      expiresAt,
+		}
+	}
 	return bundle
 }
 
@@ -142,13 +155,11 @@ func decodeJWT(tokenString string) (string, string, error) {
 	if err := json.Unmarshal(headerBytes, &header); err != nil {
 		return "", "", fmt.Errorf("error unmarshaling header JSON: %w", err)
 	}
-	fmt.Printf("Decoded header: %+v\n", header)
 
 	var payload map[string]interface{}
 	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
 		return "", "", fmt.Errorf("error unmarshaling payload JSON: %w", err)
 	}
-	fmt.Printf("Decoded payload: %+v\n", payload)
 
 	requestorID, ok := payload["requestor_id"].(string)
 	if !ok {
@@ -165,6 +176,7 @@ func decodeJWT(tokenString string) (string, string, error) {
 
 func (s *TokenServer) AssociatePrimaryUser(ctx context.Context, req *tokenpb.AssociatePrimaryUserRequest) (*tokenpb.AssociatePrimaryUserResponse, error) {
 	_, cert, name, esn, err := getBotDetailsFromTokReq(ctx, req)
+	log.Important("Robot being authenticated. ESN: "+esn, ", name: "+name)
 	log.Debug("incoming primary user")
 	log.Debug(cert, name, esn, err)
 	thing := esn
@@ -173,7 +185,7 @@ func (s *TokenServer) AssociatePrimaryUser(ctx context.Context, req *tokenpb.Ass
 		return nil, err
 	}
 	os.WriteFile(filepath.Join(vars.SessionCertsStorage, name+"_"+esn), cert, 0777)
-	bundle := GenJWT("hotwire", thing)
+	bundle := GenJWT(req.GenerateStsToken, true, "hotwire", thing)
 	return &tokenpb.AssociatePrimaryUserResponse{
 		Data: bundle,
 	}, nil
@@ -186,13 +198,14 @@ func (s *TokenServer) AssociateSecondaryClient(ctx context.Context, req *tokenpb
 	}
 	jwtToken := md["anki-access-token"]
 	thing, userId, err := decodeJWT(jwtToken[0])
+	log.Important("Robot being authenticated. ESN: " + thing)
 	log.Debug("Incoming secondary client")
 	log.Debug(jwtToken[0])
 	if err != nil {
 		fmt.Println(err)
 		return nil, err
 	}
-	bundle := GenJWT(userId, thing)
+	bundle := GenJWT(false, true, userId, thing)
 	log.Debug(bundle)
 	return &tokenpb.AssociateSecondaryClientResponse{
 		Data: bundle,
@@ -213,7 +226,7 @@ func (s *TokenServer) RefreshToken(ctx context.Context, req *tokenpb.RefreshToke
 	if err != nil {
 		return nil, err
 	}
-	bundle := GenJWT(userId, thing)
+	bundle := GenJWT(req.RefreshStsTokens, req.RefreshJwtTokens, userId, thing)
 	return &tokenpb.RefreshTokenResponse{
 		Data: bundle,
 	}, nil

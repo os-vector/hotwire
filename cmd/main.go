@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"hotwire/pkg/api"
 	"hotwire/pkg/hotwire"
 	"hotwire/pkg/log"
 	"hotwire/pkg/servers/jdocs"
@@ -9,6 +10,7 @@ import (
 	"hotwire/pkg/stts/vosk"
 	"hotwire/pkg/vars"
 	"net"
+	"net/http"
 	"os"
 
 	chipperserver "hotwire/pkg/servers/chipper"
@@ -38,7 +40,6 @@ func main() {
 		grpcserver.WithReflectionService(),
 		grpcserver.WithCertificate(cert),
 		grpcserver.WithClientAuth(tls.RequestClientCert),
-	//	grpcserver.WithInsecureSkipVerify(),
 	)
 	if err != nil {
 		panic(err)
@@ -66,5 +67,11 @@ func main() {
 		panic(err)
 	}
 	log.Normal("started")
-	srv.Transport().Serve(listenerOne)
+	go srv.Transport().Serve(listenerOne)
+	api.InitConncheck()
+	err = http.ListenAndServe(":80", nil)
+	if err != nil {
+		log.Error("ListenAndServe error (:80):", err)
+		os.Exit(1)
+	}
 }

@@ -13,6 +13,8 @@ require (
 	github.com/gordonklaus/portaudio v0.0.0-20230709114228-aafa478834f5
 	github.com/kercre123/vosk-api/go v1.0.2
 	github.com/maxhawkins/go-webrtcvad v0.0.0-20210121163624-be60036f3083
+	github.com/pion/mdns/v2 v2.0.7
+	golang.org/x/net v0.30.0
 	google.golang.org/grpc v1.69.2
 )
 
@@ -47,6 +49,7 @@ require (
 	github.com/mitchellh/mapstructure v1.4.3 // indirect
 	github.com/nicksnyder/go-i18n/v2 v2.4.0 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
+	github.com/pion/logging v0.2.2 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/rymdport/portal v0.3.0 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
@@ -62,7 +65,6 @@ require (
 	github.com/yuin/goldmark v1.7.1 // indirect
 	golang.org/x/image v0.18.0 // indirect
 	golang.org/x/mobile v0.0.0-20231127183840-76ac6878050a // indirect
-	golang.org/x/net v0.30.0 // indirect
 	golang.org/x/sys v0.26.0 // indirect
 	golang.org/x/text v0.19.0 // indirect
 	google.golang.org/genproto v0.0.0-20231002182017-d307bd883b97 // indirect

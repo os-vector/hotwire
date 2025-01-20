@@ -6,30 +6,32 @@ import (
 )
 
 var (
-	RootPath = "./storage"
+	UserData = "./storage"
 
 	JdocsFilePath         = "jdocs.json"
-	BotGUIDsFilePath      = "botGUIDs.json"
+	SavedRobotsFilePath   = "savedRobots.json"
 	HotwireConfigFilePath = "hotwireConfig.json"
 	PerBotFilePath        = "perBotConfig.json"
 	SessionCertsStorage   = "session-certs"
 	STTStorage            = "stt"
+
+	IntentDataPath = "intent-data"
 
 	CertPath = "cert.pem"
 	KeyPath  = "cert.key"
 )
 
 func init() {
-	if _, err := os.Stat(RootPath); err != nil {
-		os.Mkdir(RootPath, 0777)
+	if _, err := os.Stat(UserData); err != nil {
+		os.Mkdir(UserData, 0777)
 	}
-	JdocsFilePath = filepath.Join(RootPath, JdocsFilePath)
-	BotGUIDsFilePath = filepath.Join(RootPath, BotGUIDsFilePath)
-	HotwireConfigFilePath = filepath.Join(RootPath, HotwireConfigFilePath)
-	PerBotFilePath = filepath.Join(RootPath, PerBotFilePath)
-	SessionCertsStorage = filepath.Join(RootPath, SessionCertsStorage)
-	STTStorage = filepath.Join(RootPath, STTStorage)
+	JdocsFilePath = filepath.Join(UserData, JdocsFilePath)
+	SavedRobotsFilePath = filepath.Join(UserData, SavedRobotsFilePath)
+	HotwireConfigFilePath = filepath.Join(UserData, HotwireConfigFilePath)
+	PerBotFilePath = filepath.Join(UserData, PerBotFilePath)
+	SessionCertsStorage = filepath.Join(UserData, SessionCertsStorage)
+	STTStorage = filepath.Join(UserData, STTStorage)
 
-	CertPath = filepath.Join(RootPath, CertPath)
-	KeyPath = filepath.Join(RootPath, KeyPath)
+	CertPath = filepath.Join(UserData, CertPath)
+	KeyPath = filepath.Join(UserData, KeyPath)
 }
