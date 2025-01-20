@@ -66,7 +66,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	log.Normal("started")
+	log.Important("Hotwire has started.")
 	go srv.Transport().Serve(listenerOne)
 	api.InitConncheck()
 	err = http.ListenAndServe(":80", nil)

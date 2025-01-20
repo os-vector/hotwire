@@ -2,8 +2,8 @@ package api
 
 import (
 	"context"
-	"fmt"
 	"hotwire/pkg/log"
+	"hotwire/pkg/vars"
 	"net"
 	"net/http"
 	"strings"
@@ -17,6 +17,9 @@ import (
 
 var runningmDNS []string
 var runningmDNSmu sync.Mutex
+
+var mDNSexhaustedIPs []string
+var exhaustedmu sync.Mutex
 
 func addRunningmDNS(ip string) {
 	runningmDNSmu.Lock()
@@ -52,47 +55,106 @@ func removeRunningmDNS(ip string) {
 	runningmDNS = newRunnings
 }
 
+func addExhaustedmDNS(ip string) {
+	exhaustedmu.Lock()
+	mDNSexhaustedIPs = append(mDNSexhaustedIPs, ip)
+	log.Debug("new exhaustedmDNS list:", mDNSexhaustedIPs)
+	exhaustedmu.Unlock()
+}
+
+func findExhaustedmDNS(ip string) bool {
+	exhaustedmu.Lock()
+	defer exhaustedmu.Unlock()
+	for _, str := range mDNSexhaustedIPs {
+		if str == ip {
+			log.Debug(ip, "already found in exhausted mDNS list")
+			return true
+		}
+	}
+	return false
+}
+
+func removeExhaustedmDNS(ip string) {
+	exhaustedmu.Lock()
+	defer exhaustedmu.Unlock()
+	var newExhausted []string
+	for _, str := range mDNSexhaustedIPs {
+		if str != ip {
+			newExhausted = append(newExhausted, str)
+		} else {
+			log.Debug("removing", ip, "from exhausted mDNS list")
+		}
+	}
+	log.Debug("new exhausted mDNS list:", newExhausted)
+	mDNSexhaustedIPs = newExhausted
+}
+
 // go through all names which are not active
+// this handles robot IP changes
 func startmDNS(ip string) {
-	log.Debug("running mDNS...")
+	log.Normal("New bot found on network, but IP isn't in list. Figuring out who it is...")
 	addRunningmDNS(ip)
-	var packetConnV4 *ipv4.PacketConn
-	addr4, err := net.ResolveUDPAddr("udp4", mdns.DefaultAddressIPv4)
-	if err != nil {
-		panic(err)
-	}
+	defer removeRunningmDNS(ip)
+	for _, name := range vars.GetAllInactiveNames() {
+		log.Debug("running mDNS for " + name)
+		var packetConnV4 *ipv4.PacketConn
+		addr4, err := net.ResolveUDPAddr("udp4", mdns.DefaultAddressIPv4)
+		if err != nil {
+			panic(err)
+		}
 
-	l4, err := net.ListenUDP("udp4", addr4)
-	if err != nil {
-		panic(err)
-	}
+		l4, err := net.ListenUDP("udp4", addr4)
+		if err != nil {
+			panic(err)
+		}
 
-	packetConnV4 = ipv4.NewPacketConn(l4)
-	var packetConnV6 *ipv6.PacketConn
+		packetConnV4 = ipv4.NewPacketConn(l4)
+		var packetConnV6 *ipv6.PacketConn
 
-	server, err := mdns.Server(packetConnV4, packetConnV6, &mdns.Config{})
-	if err != nil {
-		panic(err)
+		server, err := mdns.Server(packetConnV4, packetConnV6, &mdns.Config{})
+		if err != nil {
+			panic(err)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
+		defer cancel()
+		_, src, err := server.QueryAddr(ctx, name+".local")
+		defer server.Close()
+		if err == nil {
+			if src.String() == ip {
+				rob, _ := vars.GetRobot("", "", name)
+				rob.IP = ip
+				vars.SaveRobot(rob)
+				vars.SetActive(rob.ESN)
+				removeExhaustedmDNS(ip)
+				log.Debug("TODO: would read jdocs")
+				return
+				// TODO: fetch jdocs
+			}
+		}
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
-	defer cancel()
-	answer, src, err := server.QueryAddr(ctx, "Vector-E9B3.local")
-	fmt.Println("answer:", answer)
-	fmt.Println("src:", src)
-	fmt.Println("err:", err)
+	log.Error("New robot is making requests to wire-pod, but no saved names match the robot. IP: " + ip)
+	addExhaustedmDNS(ip)
 }
 
 func handleConncheck(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
 	log.Debug("Incoming conncheck: " + ip)
-	if findRunningmDNS(ip) {
-		go startmDNS(ip)
+	rob, err := vars.GetRobot(ip, "", "")
+	if err != nil {
+		if !findRunningmDNS(ip) && !findExhaustedmDNS(ip) {
+			go startmDNS(ip)
+		}
+	} else {
+		if !rob.Active {
+			log.Debug("TODO: would read jdocs")
+		}
+		vars.SetActive(rob.ESN)
 	}
-	startmDNS(r.RemoteAddr)
 	w.WriteHeader(200)
 	w.Write([]byte("ok"))
 }
 
 func InitConncheck() {
+	go vars.StartRobotTicker()
 	http.HandleFunc("/ok", handleConncheck)
 }

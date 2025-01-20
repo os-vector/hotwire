@@ -66,6 +66,14 @@ func getBotDetailsFromTokReq(ctx context.Context, req *tokenpb.AssociatePrimaryU
 	return token, cert, name, esn, nil
 }
 
+func getIPfromReq(ctx context.Context) (string, error) {
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return "", errors.New("unable to get peer details from ctx (getipfromreq)")
+	}
+	return strings.Split(p.Addr.String(), ":")[0], nil
+}
+
 func GenJWT(genSTS bool, genJWT bool, userID, esnThing string) *tokenpb.TokenBundle {
 	bundle := &tokenpb.TokenBundle{}
 
@@ -176,16 +184,32 @@ func decodeJWT(tokenString string) (string, string, error) {
 
 func (s *TokenServer) AssociatePrimaryUser(ctx context.Context, req *tokenpb.AssociatePrimaryUserRequest) (*tokenpb.AssociatePrimaryUserResponse, error) {
 	_, cert, name, esn, err := getBotDetailsFromTokReq(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	ip, err := getIPfromReq(ctx)
+	if err != nil {
+		return nil, err
+	}
 	log.Important("Robot being authenticated. ESN: "+esn, ", name: "+name)
 	log.Debug("incoming primary user")
 	log.Debug(cert, name, esn, err)
 	thing := esn
 	esn = strings.TrimPrefix(esn, "vic:")
-	if err != nil {
-		return nil, err
-	}
+	os.Mkdir(vars.SessionCertsStorage, 0777)
 	os.WriteFile(filepath.Join(vars.SessionCertsStorage, name+"_"+esn), cert, 0777)
 	bundle := GenJWT(req.GenerateStsToken, true, "hotwire", thing)
+	vars.SaveRobot(
+		vars.Robot{
+			Active:      true,
+			TSLC:        0,
+			ResetTimer:  true,
+			IP:          ip,
+			ESN:         esn,
+			CurrentGUID: bundle.ClientToken,
+			Name:        name,
+		},
+	)
 	return &tokenpb.AssociatePrimaryUserResponse{
 		Data: bundle,
 	}, nil
@@ -197,16 +221,35 @@ func (s *TokenServer) AssociateSecondaryClient(ctx context.Context, req *tokenpb
 		return nil, errors.New("no request metadata")
 	}
 	jwtToken := md["anki-access-token"]
+	log.Debug(md)
 	thing, userId, err := decodeJWT(jwtToken[0])
-	log.Important("Robot being authenticated. ESN: " + thing)
-	log.Debug("Incoming secondary client")
-	log.Debug(jwtToken[0])
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
+	ip, err := getIPfromReq(ctx)
+	esn := strings.Split(thing, ":")[1]
+	log.Important("Robot being authenticated (secondary). ESN: " + thing)
+	log.Debug("Incoming secondary client")
+	log.Debug(jwtToken[0])
 	bundle := GenJWT(false, true, userId, thing)
 	log.Debug(bundle)
+	var name string
+	rob, err := vars.GetRobot(ip, esn, "")
+	if err == nil {
+		log.Debug("using "+rob.Name+" as name for secondary client response (ip, esn:", ip, esn+")")
+		name = rob.Name
+	}
+	vars.SaveRobot(
+		vars.Robot{
+			Active:      true,
+			TSLC:        0,
+			ResetTimer:  true,
+			IP:          ip,
+			ESN:         esn,
+			CurrentGUID: bundle.ClientToken,
+			Name:        name,
+		},
+	)
 	return &tokenpb.AssociateSecondaryClientResponse{
 		Data: bundle,
 	}, nil
@@ -220,13 +263,36 @@ func (s *TokenServer) RefreshToken(ctx context.Context, req *tokenpb.RefreshToke
 		return nil, errors.New("no request metadata")
 	}
 	log.Debug("Incoming refresh token")
+	log.Debug(md)
 	jwtToken := md["anki-access-token"]
 	thing, userId, err := decodeJWT(jwtToken[0])
-	log.Debug(jwtToken, thing, userId)
 	if err != nil {
 		return nil, err
 	}
+	log.Debug(jwtToken, thing, userId)
+	ip, err := getIPfromReq(ctx)
+	if err != nil {
+		return nil, err
+	}
+	esn := strings.Split(thing, ":")[1]
 	bundle := GenJWT(req.RefreshStsTokens, req.RefreshJwtTokens, userId, thing)
+	var name string
+	rob, err := vars.GetRobot(ip, esn, "")
+	if err == nil {
+		log.Debug("using "+rob.Name+" as name for secondary client response (ip, esn:", ip, esn+")")
+		name = rob.Name
+	}
+	vars.SaveRobot(
+		vars.Robot{
+			Active:      true,
+			TSLC:        0,
+			ResetTimer:  true,
+			IP:          ip,
+			ESN:         esn,
+			CurrentGUID: bundle.ClientToken,
+			Name:        name,
+		},
+	)
 	return &tokenpb.RefreshTokenResponse{
 		Data: bundle,
 	}, nil

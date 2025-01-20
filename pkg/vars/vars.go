@@ -1,6 +1,7 @@
 package vars
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -34,4 +35,9 @@ func init() {
 
 	CertPath = filepath.Join(UserData, CertPath)
 	KeyPath = filepath.Join(UserData, KeyPath)
+
+	err := LoadRobots()
+	if err != nil {
+		fmt.Println("error loading robots: ", err)
+	}
 }

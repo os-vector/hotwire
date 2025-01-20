@@ -3,8 +3,10 @@ package vars
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sync"
+	"time"
 )
 
 var robotsMu sync.Mutex
@@ -14,6 +16,8 @@ var sRobots []SavedRobot
 
 type Robot struct {
 	Active      bool   `json:"active"`
+	TSLC        int    `json:"tlsc"`
+	ResetTimer  bool   `json:"resettimer"`
 	IP          string `json:"ip"`
 	ESN         string `json:"esn"`
 	CurrentGUID string `json:"guid"`
@@ -29,6 +33,7 @@ type SavedRobot struct {
 
 type RobotToReturn struct {
 	Active      bool   `json:"active"`
+	TSLC        int    `json:"tlsc"`
 	IP          string `json:"ip"`
 	ESN         string `json:"esn"`
 	CurrentGUID string `json:"guid"`
@@ -86,6 +91,7 @@ func SetActive(esn string) error {
 	for i, r := range aRobots {
 		if r.ESN == esn {
 			aRobots[i].Active = true
+			aRobots[i].ResetTimer = true
 			return nil
 		}
 	}
@@ -102,6 +108,36 @@ func SetInactive(esn string) error {
 		}
 	}
 	return errors.New("setactive: bot " + esn + " did not exist...")
+}
+
+func ResetBotTimer(esn string) {
+	robotsMu.Lock()
+	defer robotsMu.Unlock()
+	for i, r := range aRobots {
+		if r.ESN == esn {
+			aRobots[i].ResetTimer = true
+		}
+	}
+}
+
+func StartRobotTicker() {
+	tick := time.NewTicker(time.Second * 30)
+	for range tick.C {
+		robotsMu.Lock()
+		for i, r := range aRobots {
+			if r.ResetTimer {
+				aRobots[i].TSLC = 0
+				aRobots[i].ResetTimer = false
+			} else {
+				aRobots[i].TSLC += 30
+				if r.Active {
+					fmt.Println("not active anymore!")
+					aRobots[i].Active = false
+				}
+			}
+		}
+		robotsMu.Unlock()
+	}
 }
 
 func IsBotInList(esn string) bool {
@@ -152,7 +188,10 @@ func SaveRobot(rIn Robot) error {
 	}
 	f, err := os.Open(SavedRobotsFilePath)
 	if err != nil {
-		return err
+		f, err = os.Create(SavedRobotsFilePath)
+		if err != nil {
+			return err
+		}
 	}
 	err = json.NewEncoder(f).Encode(sRobots)
 	if err != nil {

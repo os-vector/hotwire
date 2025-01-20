@@ -25,6 +25,7 @@ func (v VoskSTT) Name() string {
 
 // path is ./storage/stt/Vosk
 func (v VoskSTT) Load(path string) error {
+	vosk.SetLogLevel(-1)
 	var err error
 	model, err = vosk.NewModel(filepath.Join(path, "en-US"))
 	if err != nil {
