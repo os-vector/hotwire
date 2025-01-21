@@ -7,8 +7,9 @@
 
 - [x] Token server
 - [x] Jdocs server
-- [-] Chipper server
-- [-] STT interface
+- [x] Chipper server
+  - sorta
+- [ ] STT interface
   - Should implement:
     - `Name string`
     - `Init() error`
@@ -23,7 +24,7 @@
   - [ ] Configuration
   - [ ] Bot settings
   - Maybe just use websockets for robot control
-- [-] Flutter UI
+- [ ] Flutter UI
 - [ ] Inbuilt BLE with go-ble
   - [ ] Detect a dev OS. If dev, download logs for SSH key (after trying Anki ssh_root_key) and implement correct vic-cloud and server config
   - [ ] Handle OTA updates. Consider uploading the OTA to a GitHub release and including an HTTPS->HTTP proxy in Hotwire 
