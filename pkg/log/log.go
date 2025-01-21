@@ -10,12 +10,23 @@ import (
 )
 
 var DebugLogging bool
+var SuperDebugLogging bool
 
 func init() {
 	LogTrayChan = make(chan string)
 	if os.Getenv(vars.DebugLoggingEnv) == "true" {
 		fmt.Println("Debug logging is enabled")
 		DebugLogging = true
+	}
+	if os.Getenv(vars.SuperDebugLoggingEnv) == "true" {
+		fmt.Println("Super debug logging is enabled")
+		SuperDebugLogging = true
+	}
+}
+
+func SuperDebug(a ...any) {
+	if SuperDebugLogging {
+		color.Cyan(fmt.Sprint(a...))
 	}
 }
 

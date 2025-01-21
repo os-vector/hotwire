@@ -3,7 +3,6 @@ package vars
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -43,8 +42,14 @@ type RobotToReturn struct {
 func LoadRobots() error {
 	file, err := os.Open(SavedRobotsFilePath)
 	if err != nil {
-		return err
+		file, err = os.Create(SavedRobotsFilePath)
+		if err != nil {
+			return err
+		}
+		file.Close()
+		return nil
 	}
+	defer file.Close()
 	err = json.NewDecoder(file).Decode(&sRobots)
 	if err != nil {
 		return err
@@ -110,6 +115,17 @@ func SetInactive(esn string) error {
 	return errors.New("setactive: bot " + esn + " did not exist...")
 }
 
+func AreThereInactiveBots() bool {
+	robotsMu.Lock()
+	defer robotsMu.Unlock()
+	for _, r := range aRobots {
+		if !r.Active {
+			return true
+		}
+	}
+	return false
+}
+
 func ResetBotTimer(esn string) {
 	robotsMu.Lock()
 	defer robotsMu.Unlock()
@@ -131,7 +147,7 @@ func StartRobotTicker() {
 			} else {
 				aRobots[i].TSLC += 30
 				if r.Active {
-					fmt.Println("not active anymore!")
+					// NOTE - log package exception
 					aRobots[i].Active = false
 				}
 			}
@@ -193,6 +209,7 @@ func SaveRobot(rIn Robot) error {
 			return err
 		}
 	}
+	defer f.Close()
 	err = json.NewEncoder(f).Encode(sRobots)
 	if err != nil {
 		return err

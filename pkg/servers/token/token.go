@@ -193,12 +193,13 @@ func (s *TokenServer) AssociatePrimaryUser(ctx context.Context, req *tokenpb.Ass
 	}
 	log.Important("Robot being authenticated. ESN: "+esn, ", name: "+name)
 	log.Debug("incoming primary user")
-	log.Debug(cert, name, esn, err)
+	log.SuperDebug(cert, name, esn, err)
 	thing := esn
 	esn = strings.TrimPrefix(esn, "vic:")
 	os.Mkdir(vars.SessionCertsStorage, 0777)
 	os.WriteFile(filepath.Join(vars.SessionCertsStorage, name+"_"+esn), cert, 0777)
 	bundle := GenJWT(req.GenerateStsToken, true, "hotwire", thing)
+	log.SuperDebug(bundle)
 	vars.SaveRobot(
 		vars.Robot{
 			Active:      true,
@@ -221,7 +222,7 @@ func (s *TokenServer) AssociateSecondaryClient(ctx context.Context, req *tokenpb
 		return nil, errors.New("no request metadata")
 	}
 	jwtToken := md["anki-access-token"]
-	log.Debug(md)
+	log.SuperDebug(md)
 	thing, userId, err := decodeJWT(jwtToken[0])
 	if err != nil {
 		return nil, err
@@ -230,15 +231,17 @@ func (s *TokenServer) AssociateSecondaryClient(ctx context.Context, req *tokenpb
 	esn := strings.Split(thing, ":")[1]
 	log.Important("Robot being authenticated (secondary). ESN: " + thing)
 	log.Debug("Incoming secondary client")
-	log.Debug(jwtToken[0])
+	log.SuperDebug(jwtToken[0])
 	bundle := GenJWT(false, true, userId, thing)
-	log.Debug(bundle)
 	var name string
 	rob, err := vars.GetRobot(ip, esn, "")
 	if err == nil {
 		log.Debug("using "+rob.Name+" as name for secondary client response (ip, esn:", ip, esn+")")
 		name = rob.Name
+	} else {
+		log.Debug("this robot's userdata was not cleared. i still need to figure out a way to find the name")
 	}
+	log.SuperDebug("this bot:", ip, esn, bundle.ClientToken, name)
 	vars.SaveRobot(
 		vars.Robot{
 			Active:      true,
@@ -263,13 +266,13 @@ func (s *TokenServer) RefreshToken(ctx context.Context, req *tokenpb.RefreshToke
 		return nil, errors.New("no request metadata")
 	}
 	log.Debug("Incoming refresh token")
-	log.Debug(md)
+	log.SuperDebug(md)
 	jwtToken := md["anki-access-token"]
 	thing, userId, err := decodeJWT(jwtToken[0])
 	if err != nil {
 		return nil, err
 	}
-	log.Debug(jwtToken, thing, userId)
+	log.SuperDebug(jwtToken, thing, userId)
 	ip, err := getIPfromReq(ctx)
 	if err != nil {
 		return nil, err
@@ -282,6 +285,7 @@ func (s *TokenServer) RefreshToken(ctx context.Context, req *tokenpb.RefreshToke
 		log.Debug("using "+rob.Name+" as name for secondary client response (ip, esn:", ip, esn+")")
 		name = rob.Name
 	}
+	log.SuperDebug("this bot:", ip, esn, bundle.ClientToken, name)
 	vars.SaveRobot(
 		vars.Robot{
 			Active:      true,

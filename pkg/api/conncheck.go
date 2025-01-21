@@ -24,7 +24,7 @@ var exhaustedmu sync.Mutex
 func addRunningmDNS(ip string) {
 	runningmDNSmu.Lock()
 	runningmDNS = append(runningmDNS, ip)
-	log.Debug("new runningmDNS list:", runningmDNS)
+	log.SuperDebug("new runningmDNS list:", runningmDNS)
 	runningmDNSmu.Unlock()
 }
 
@@ -33,7 +33,7 @@ func findRunningmDNS(ip string) bool {
 	defer runningmDNSmu.Unlock()
 	for _, str := range runningmDNS {
 		if str == ip {
-			log.Debug(ip, "already found in mDNS list")
+			log.SuperDebug(ip, "already found in mDNS list")
 			return true
 		}
 	}
@@ -51,14 +51,14 @@ func removeRunningmDNS(ip string) {
 			log.Debug("removing", ip, "from mDNS list")
 		}
 	}
-	log.Debug("new mDNS list:", newRunnings)
+	log.SuperDebug("new mDNS list:", newRunnings)
 	runningmDNS = newRunnings
 }
 
 func addExhaustedmDNS(ip string) {
 	exhaustedmu.Lock()
 	mDNSexhaustedIPs = append(mDNSexhaustedIPs, ip)
-	log.Debug("new exhaustedmDNS list:", mDNSexhaustedIPs)
+	log.SuperDebug("new exhaustedmDNS list:", mDNSexhaustedIPs)
 	exhaustedmu.Unlock()
 }
 
@@ -67,7 +67,7 @@ func findExhaustedmDNS(ip string) bool {
 	defer exhaustedmu.Unlock()
 	for _, str := range mDNSexhaustedIPs {
 		if str == ip {
-			log.Debug(ip, "already found in exhausted mDNS list")
+			log.SuperDebug(ip, "already found in exhausted mDNS list")
 			return true
 		}
 	}
@@ -138,8 +138,9 @@ func startmDNS(ip string) {
 
 func handleConncheck(w http.ResponseWriter, r *http.Request) {
 	ip := strings.Split(r.RemoteAddr, ":")[0]
-	log.Debug("Incoming conncheck: " + ip)
+	log.SuperDebug("Incoming conncheck: " + ip)
 	rob, err := vars.GetRobot(ip, "", "")
+	// if we aren't already trying to find this IP on mDNS, and the attempts aren't exhausted for this IP, startmDNS
 	if err != nil {
 		if !findRunningmDNS(ip) && !findExhaustedmDNS(ip) {
 			go startmDNS(ip)

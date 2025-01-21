@@ -7,30 +7,28 @@
 
 - [x] Token server
 - [x] Jdocs server
-- [ ] Chipper server
-- [ ] STT interface
+- [-] Chipper server
+- [-] STT interface
   - Should implement:
     - `Name string`
     - `Init() error`
     - `Process(data []int16, data []byte) (string, error)`
     - `MultiLanguageSupport bool`
        - If true, define SupportedLanguages. That could be a struct containing language, link to model, and accuracy notes
-- [ ] Better VAD
+- [x] Better VAD
   - Use same library, just handle more edge cases
-- [ ] Better voice filtering
+- [x] Better voice filtering
   - wire-pod's voice filtering seems to slow things down...
 - [ ] Websocketed API
   - [ ] Configuration
   - [ ] Bot settings
   - Maybe just use websockets for robot control
-- [ ] UI made with a framework
-  - React? Flutter?
-  - pretty
+- [-] Flutter UI
 - [ ] Inbuilt BLE with go-ble
   - [ ] Detect a dev OS. If dev, download logs for SSH key (after trying Anki ssh_root_key) and implement correct vic-cloud and server config
   - [ ] Handle OTA updates. Consider uploading the OTA to a GitHub release and including an HTTPS->HTTP proxy in Hotwire 
-- [ ] Make connchecks work, will require gRPC-gateway
-- [ ] Handle IP changes (both robot and Hotwire server)
+- [x] Make connchecks work
+- [x] Handle IP changes (both robot and Hotwire server)
 - [ ] Use combo of multicast and mDNS?
 - [ ] Easy-to-use "get GUID" API endpoint
 - [ ] Configurable intent utterances
